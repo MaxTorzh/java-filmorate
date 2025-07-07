@@ -1,118 +1,114 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.UserService;
 
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 
 /**
- * Контроллер для управления пользователями.
- * Обеспечение получения, создания и обновления списка пользователей.
+ * Контроллер {@code UserController} обрабатывает HTTP-запросы, связанные с пользователями.
+ *
+ * <p>Поддерживает следующие операции:</p>
+ * <ul>
+ *     <li>Получение списка всех пользователей</li>
+ *     <li>Создание нового пользователя</li>
+ *     <li>Обновление данных существующего пользователя</li>
+ *     <li>Добавление и удаление друзей у пользователя</li>
+ *     <li>Получение списка друзей пользователя</li>
+ *     <li>Поиск общих друзей между двумя пользователями</li>
+ * </ul>
+ *
+ * <p>Все операции выполняются через слой: бизнес-логику ({@link UserService}).</p>
  */
 @Slf4j
 @RestController
 @RequestMapping("/users")
+@RequiredArgsConstructor
 public class UserController {
-
-    private final Map<Long, User> users = new HashMap<>();
-    private final AtomicLong idCounter = new AtomicLong(1);
+    private final UserService userService;
 
     /**
-     * Возвращение списка всех пользователей, отсортированных по ID.
-     * @return коллекция пользователей в порядке возрастания ID.
+     * Возвращает список всех зарегистрированных пользователей.
+     *
+     * @return коллекция объектов типа {@link User}
      */
     @GetMapping
     public Collection<User> findAllUsers() {
-        log.info("GET /users - получение списка всех пользователей");
-        return users.values()
-                .stream()
-                .sorted(Comparator.comparing(User::getId))
-                .collect(Collectors.toList());
+        return userService.findAllUsers();
     }
 
     /**
-     * Создание нового пользователя.
-     * Валидация данных пользователя. Если имя пустое, заменяет его логином.
-     * @param user данные пользователя для создания.
-     * @return созданный пользователь с присвоенным ID.
-     * @throws ValidationException если данные пользователя не проходят валидацию.
+     * Возвращает список друзей указанного пользователя.
+     *
+     * @param friendId ID пользователя, чьи друзья запрашиваются
+     * @return коллекция объектов типа {@link User}, представляющих друзей
+     */
+    @GetMapping("/{friendId}/friends")
+    public Collection<User> getFriends(@PathVariable Long friendId) {
+        return userService.getFriends(friendId);
+    }
+
+    /**
+     * Возвращает список общих друзей между двумя пользователями.
+     *
+     * @param friendId ID первого пользователя
+     * @param userId   ID второго пользователя
+     * @return коллекция объектов типа {@link User}, представляющих общих друзей
+     */
+    @GetMapping("/{friendId}/friends/common/{userId}")
+    public Collection<User> getCommonFriends(@PathVariable Long friendId,
+                                             @PathVariable Long userId) {
+        return userService.getCommonFriends(friendId, userId);
+    }
+
+    /**
+     * Создаёт нового пользователя.
+     *
+     * @param user объект пользователя, переданный в теле запроса
+     * @return созданный объект типа {@link User} с присвоенным ID
      */
     @PostMapping
     public User createUser(@Valid @RequestBody User user) {
-        log.info("POST /users - попытка создания пользователя: {}", user.getEmail());
-        try {
-            if (users.values().stream().anyMatch(u -> u.getEmail().equalsIgnoreCase(user.getEmail()))) {
-                log.error("Такой email уже существует: {}", user.getEmail());
-                throw new DuplicatedDataException("Email уже используется");
-            }
-            user.setId(getNextId());
-            if (user.getName() == null || user.getName().isBlank()) {
-                user.setName(user.getLogin());
-                log.debug("Замена пустого имени на логин: {}", user.getLogin());
-            }
-            users.put(user.getId(), user);
-            log.info("Пользователь создан: ID={}", user.getId());
-            return user;
-        } catch (RuntimeException e) {
-            log.error("Ошибка при создании пользователя", e);
-            throw e;
-        }
+        return userService.createUser(user);
     }
 
     /**
-     * Обновление данных существующего пользователя.
-     * Проверка, что пользователь существует и email не дублируется.
-     * @param newUser новые данные пользователя.
-     * @return обновленный пользователь.
-     * @throws NotFoundException если пользователь с указанным ID не найден.
-     * @throws DuplicatedDataException если новый email уже используется.
-     * @throws ValidationException если данные не проходят валидацию.
+     * Обновляет данные существующего пользователя.
+     *
+     * @param user объект пользователя с новыми данными
+     * @return обновлённый объект типа {@link User}
      */
     @PutMapping
-    public User updateUser(@Valid @RequestBody User newUser) {
-        log.info("PUT /users - попытка обновления пользователя: {}", newUser.getEmail());
-        try {
-            User existingUser = users.get(newUser.getId());
-            if (existingUser == null) {
-                log.error("Отсутствует ID: {}", newUser.getId());
-                throw new NotFoundException("Пользователь с ID " + newUser.getId() + " не найден");
-            }
-            if (!newUser.getEmail().equals(existingUser.getEmail())
-                    && users.values().stream().anyMatch(user -> user.getEmail().equals(newUser.getEmail()))) {
-                log.error("Такой email уже существует: {}", newUser.getEmail());
-                throw new DuplicatedDataException("Email уже используется");
-            }
-            existingUser.setEmail(newUser.getEmail());
-            existingUser.setLogin(newUser.getLogin());
-            existingUser.setBirthday(newUser.getBirthday());
-            if (newUser.getName() != null && !newUser.getName().isBlank()) {
-                existingUser.setName(newUser.getName());
-            } else {
-                existingUser.setName(newUser.getLogin());
-            }
-            return existingUser;
-        } catch (RuntimeException e) {
-            log.error("Ошибка при обновлении пользователя", e);
-            throw e;
-        }
+    public User updateUser(@Valid @RequestBody User user) {
+        return userService.updateUser(user);
     }
 
     /**
-     * Генерация следующего ID для нового пользователя.
-     * Поиск максимально-существующего ID и увеличение его на 1.
-     * @return следующий доступный ID.
+     * Добавляет друга указанному пользователю.
+     *
+     * @param userId   ID пользователя, которому добавляется друг
+     * @param friendId ID пользователя, которого добавляют в друзья
      */
-    private long getNextId() {
-        return idCounter.getAndIncrement();
+    @PutMapping("/{userId}/friends/{friendId}")
+    public void addFriend(@PathVariable Long userId,
+                          @PathVariable Long friendId) {
+        userService.addFriend(userId, friendId);
+    }
+
+    /**
+     * Удаляет друга у указанного пользователя.
+     *
+     * @param userId   ID пользователя, у которого удаляется друг
+     * @param friendId ID пользователя, которого удаляют из друзей
+     */
+    @DeleteMapping("/{userId}/friends/{friendId}")
+    public void removeFriend(@PathVariable Long userId,
+                             @PathVariable Long friendId) {
+        userService.removeFriend(userId, friendId);
     }
 }
+
