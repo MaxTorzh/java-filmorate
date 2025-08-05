@@ -4,98 +4,70 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.UserStorage;
+import ru.yandex.practicum.filmorate.storage.film.FilmRepository;
+import ru.yandex.practicum.filmorate.storage.like.LikeRepository;
 
 import java.util.Collection;
 
-/**
- * Класс {@code FilmService} содержит бизнес-логику, связанную с фильмами.
- *
- * <p>В текущей реализации:</p>
- * <ul>
- *     <li>Добавление лайка фильму от пользователя</li>
- *     <li>Удаление лайка у фильма от пользователя</li>
- * </ul>
- *
- * <p>Для работы использует:</p>
- * <ul>
- *     <li>{@link FilmStorage} — для получения и изменения данных о фильме</li>
- *     <li>{@link UserStorage} — для проверки существования пользователя</li>
- * </ul>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class FilmService {
-    private final FilmStorage filmStorage;
-    private final UserStorage userStorage;
+    private final ValidationService validationService;
+    private final FilmRepository filmRepository;
+    private final LikeRepository likeRepository;
 
-    /**
-     * Добавляет лайк фильму от указанного пользователя.
-     *
-     * @param filmId ID фильма, которому ставится лайк
-     * @param userId ID пользователя, который ставит лайк
-     * @throws NotFoundException если фильм или пользователь не найдены
-     */
-    public void addLike(Long filmId, Long userId) {
-        Film film = filmStorage.getFilmById(filmId);
-        if (film == null) {
-            throw new NotFoundException("Фильм не найден.");
-        }
-        User user = userStorage.getUserById(userId);
-        if (user == null) {
-            throw new NotFoundException("Пользователь не найден.");
-        }
-        film.getLikes().add(userId);
-    }
-
-    /**
-     * Удаляет лайк у фильма от указанного пользователя.
-     *
-     * @param filmId ID фильма, у которого удаляется лайк
-     * @param userId ID пользователя, чей лайк удаляется
-     * @throws NotFoundException если фильм или пользователь не найдены
-     */
-    public void removeLike(Long filmId, Long userId) {
-        Film film = filmStorage.getFilmById(filmId);
-        if (film == null) {
-            throw new NotFoundException("Фильм не найден.");
-        }
-        User user = userStorage.getUserById(userId);
-        if (user == null) {
-            throw new NotFoundException("Пользователь не найден.");
-        }
-        film.getLikes().remove(userId);
-    }
-
-    /**
-     * Возвращает список всех фильмов.
-     */
     public Collection<Film> findAllFilms() {
-        return filmStorage.findAllFilms();
+        log.info("Попытка получения всех фильмов");
+        return filmRepository.findAllFilms();
     }
 
-    /**
-     * Возвращает самые популярные фильмы (по количеству лайков).
-     */
-    public Collection<Film> getPopularFilms(int count) {
-        return filmStorage.getPopularFilms(count);
+    public Film getFilmById(Long filmId) {
+        log.info("Попытка получения фильма по ID: {}", filmId);
+        validationService.validateFilmExists(filmId);
+        return filmRepository.getFilmById(filmId)
+                .orElseThrow(() -> new NotFoundException("Фильм с ID " + filmId + " не найден"));
     }
 
-    /**
-     * Создаёт новый фильм.
-     */
     public Film createFilm(Film film) {
-        return filmStorage.createFilm(film);
+        log.info("Попытка создания фильма: {}", film.getName());
+        validationService.validateFilm(film);
+        Film createdFilm = filmRepository.createFilm(film);
+        log.info("Создан фильм с ID: {}", createdFilm.getId());
+        return createdFilm;
     }
 
-    /**
-     * Обновляет данные фильма.
-     */
     public Film updateFilm(Film newFilm) {
-        return filmStorage.updateFilm(newFilm);
+        log.info("Попытка обновления фильма с ID: {}", newFilm.getId());
+        validationService.validateFilm(newFilm);
+        Film updatedFilm = filmRepository.updateFilm(newFilm);
+        log.info("Фильм с ID {} обновлен", newFilm.getId());
+        return updatedFilm;
+    }
+
+    public Collection<Film> getPopularFilms(int count) {
+        log.info("Попытка получения популярных фильмов в количестве {} штук", count);
+        if (count <= 0) {
+            throw new ValidationException("Количество фильмов должно быть положительным числом.");
+        }
+        return filmRepository.getPopularFilms(count);
+    }
+
+    public void addLike(Long filmId, Long userId) {
+        log.info("Попытка добавления лайка фильму {} от пользователя {}", filmId, userId);
+        validationService.validateFilmAndUserIds(filmId, userId);
+        validationService.validateFilmExists(filmId);
+        validationService.validateUserExists(userId);
+        likeRepository.addLike(filmId, userId);
+        log.info("Пользователь {} поставил лайк фильму {}", userId, filmId);
+    }
+
+    public void removeLike(Long filmId, Long userId) {
+        log.info("Попытка удаления лайка у фильма {} от пользователя {}", filmId, userId);
+        validationService.validateFilmAndUserIds(filmId, userId);
+        likeRepository.removeLike(filmId, userId);
+        log.info("Пользователь {} убрал лайк у фильма {}", userId, filmId);
     }
 }
