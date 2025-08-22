@@ -126,29 +126,100 @@ public class JdbcFilmRepository extends BaseNamedParameterRepository<Film> imple
     private static final String INSERT_FILM_DIRECTORS_QUERY = """
             INSERT INTO film_directors(film_id, director_id) VALUES(?, ?)""";
 
+    private static final String SEARCH_FILMS_BY_TITLE_QUERY = """
+            SELECT f.*, m.mpa_id AS mpa_id, m.name AS mpa_name, m.description AS mpa_description
+            FROM films f
+            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+            WHERE LOWER(f.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            ORDER BY f.film_id
+            """;
 
-    private final GenreRepository genreRepository;
+    private static final String SEARCH_FILMS_BY_DIRECTOR_QUERY = """
+            SELECT f.*, m.mpa_id AS mpa_id, m.name AS mpa_name, m.description AS mpa_description
+            FROM films f
+            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+            JOIN film_directors fd ON f.film_id = fd.film_id
+            JOIN directors d ON fd.director_id = d.director_id
+            WHERE LOWER(d.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            ORDER BY f.film_id
+            """;
 
-    public JdbcFilmRepository(NamedParameterJdbcOperations jdbc, RowMapper<Film> mapper, GenreRepository genreRepository) {
+    private static final String SEARCH_FILMS_BY_TITLE_AND_DIRECTOR_QUERY = """
+            SELECT DISTINCT f.*, m.mpa_id AS mpa_id, m.name AS mpa_name, m.description AS mpa_description
+            FROM films f
+            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+            LEFT JOIN film_directors fd ON f.film_id = fd.film_id
+            LEFT JOIN directors d ON fd.director_id = d.director_id
+            WHERE LOWER(f.name) LIKE LOWER(CONCAT('%', :query, '%'))
+               OR LOWER(d.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            ORDER BY f.film_id
+            """;
+
+
+    private static final String GET_POPULAR_FILMS_BY_GENRE_AND_YEAR_QUERY = """
+            SELECT  f.*,
+                    m.mpa_id AS mpa_id,
+                    m.name AS mpa_name,
+                    m.description AS mpa_description,
+                    COUNT(DISTINCT l.user_id) AS like_count
+            FROM films f
+            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+            LEFT JOIN likes l ON f.film_id = l.film_id
+            JOIN film_genre fg ON f.film_id = fg.film_id
+            WHERE fg.genre_id = :genreId
+            AND EXTRACT(YEAR FROM f.release_date) = :year
+            GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id,
+                    m.mpa_id, m.name, m.description
+            ORDER BY like_count DESC
+            LIMIT :count
+            """;
+
+    private static final String GET_POPULAR_FILMS_BY_GENRE_QUERY = """
+            SELECT f.*,
+             	        m.mpa_id AS mpa_id,
+            	        m.name AS mpa_name,
+            	        m.description AS mpa_description,
+            	        COUNT(DISTINCT l.user_id) AS like_count
+            FROM films f
+            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+            LEFT JOIN likes l ON f.film_id = l.film_id
+            JOIN film_genre fg ON f.film_id = fg.film_id AND fg.genre_id = :genreId
+            GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id,
+                    m.mpa_id, m.name, m.description
+            ORDER BY like_count DESC
+            LIMIT :count
+            """;
+
+    private static final String GET_POPULAR_FILMS_BY_YEAR_QUERY = """
+            SELECT DISTINCT f.*,
+                        m.mpa_id AS mpa_id,
+                        m.name AS mpa_name,
+                        m.description AS mpa_description,
+                        COUNT(DISTINCT l.user_id) AS like_count
+            FROM films f
+            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+            LEFT JOIN likes l ON f.film_id = l.film_id
+            WHERE EXTRACT(YEAR FROM f.release_date) = :year
+            GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id,
+                        m.mpa_id, m.name, m.description
+            ORDER BY like_count DESC
+            LIMIT :count
+            """;
+
+    public JdbcFilmRepository(NamedParameterJdbcOperations jdbc, RowMapper<Film> mapper) {
         super(jdbc, mapper);
-        this.genreRepository = genreRepository;
     }
 
     @Override
     public List<Film> findAllFilms() {
-        return findMany(FIND_ALL_FILMS_QUERY, new HashMap<>()).stream().peek(film -> {
-            film.setGenres(genreRepository.findGenreByFilmId(film.getId()));
-        }).collect(Collectors.toList());
+        return findMany(FIND_ALL_FILMS_QUERY, new HashMap<>());
     }
 
     @Override
     public Optional<Film> getFilmById(Long filmId) {
         Map<String, Object> params = new HashMap<>();
         params.put("filmId", filmId);
-        return findOne(FIND_FILM_BY_ID_QUERY, params).map(film -> {
-            film.setGenres(genreRepository.findGenreByFilmId(filmId));
-            return film;
-        });
+        return findOne(FIND_FILM_BY_ID_QUERY, params);
     }
 
     @Override
@@ -198,6 +269,36 @@ public class JdbcFilmRepository extends BaseNamedParameterRepository<Film> imple
     }
 
     @Override
+    public Collection<Film> getPopularFilmsByGenreAndYear(int count, Long genreId, Integer year) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("count", count);
+        params.put("genreId", genreId);
+        params.put("year", year);
+
+        return findMany(GET_POPULAR_FILMS_BY_GENRE_AND_YEAR_QUERY, params);
+    }
+
+    @Override
+    public Collection<Film> getPopularFilmsByGenre(int count, Long genreId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("count", count);
+        params.put("genreId", genreId);
+
+
+        return findMany(GET_POPULAR_FILMS_BY_GENRE_QUERY, params);
+    }
+
+    @Override
+    public Collection<Film> getPopularFilmsByYear(int count, Integer year) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("count", count);
+        params.put("year", year);
+
+        return findMany(GET_POPULAR_FILMS_BY_YEAR_QUERY, params);
+    }
+
+
+    @Override
     public Collection<Film> findFilmsByDirectorSortedByYear(Long directorId) {
         Map<String, Object> params = new HashMap<>();
         params.put("directorId", directorId);
@@ -212,6 +313,26 @@ public class JdbcFilmRepository extends BaseNamedParameterRepository<Film> imple
         return findMany(FIND_FILMS_BY_DIRECTOR_BY_LIKES_QUERY, params);
     }
 
+    @Override
+    public Collection<Film> searchFilmsByTitle(String query) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("query", query);
+        return findMany(SEARCH_FILMS_BY_TITLE_QUERY, params);
+    }
+
+    @Override
+    public Collection<Film> searchFilmsByDirector(String query) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("query", query);
+        return findMany(SEARCH_FILMS_BY_DIRECTOR_QUERY, params);
+    }
+
+    @Override
+    public Collection<Film> searchFilmsByTitleAndDirector(String query) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("query", query);
+        return findMany(SEARCH_FILMS_BY_TITLE_AND_DIRECTOR_QUERY, params);
+    }
 
     public void updateGenres(Set<Genre> genres, Long filmId) {
         if (!genres.isEmpty()) {
