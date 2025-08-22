@@ -61,5 +61,9 @@ public class FilmController {
 
     }
 
-
+    @GetMapping("/search")
+    public Collection<Film> searchFilm(@RequestParam String query,
+                                       @RequestParam(defaultValue = "title") String by) {
+        return filmService.searchFilms(query, by);
+    }
 }
