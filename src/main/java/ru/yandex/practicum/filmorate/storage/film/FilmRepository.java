@@ -19,6 +19,7 @@ public interface FilmRepository {
     Optional<Film> getFilmById(Long id);
 
     boolean deleteFilm(Long id);
+    
     List<Film> getRecommendedFilms(long userId);
 
     Collection<Film> findFilmsByDirectorSortedByYear(Long directorId);
