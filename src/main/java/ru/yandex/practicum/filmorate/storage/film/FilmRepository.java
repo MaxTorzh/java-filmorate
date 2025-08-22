@@ -20,4 +20,8 @@ public interface FilmRepository {
 
     boolean deleteFilm(Long id);
     List<Film> getRecommendedFilms(long userId);
+
+    Collection<Film> findFilmsByDirectorSortedByYear(Long directorId);
+
+    Collection<Film> findFilmsByDirectorSortedByLikes(Long directorId);
 }
