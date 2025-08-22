@@ -21,9 +21,14 @@ public class FilmController {
         return filmService.findAllFilms();
     }
 
+    //GET /films/popular?count={limit}&genreId={genreId}&year={year}
     @GetMapping("/popular")
-    public Collection<Film> getPopulateFilms(@RequestParam(defaultValue = "10") int count) {
-        return filmService.getPopularFilms(count);
+    public Collection<Film> getPopulateFilms(
+            @RequestParam(defaultValue = "10") int count,
+            @RequestParam(required = false) Long genreId,
+            @RequestParam(required = false) Integer year
+    ) {
+        return filmService.getPopularFilms(count, genreId, year);
     }
 
     @GetMapping("/{id}")
@@ -58,7 +63,6 @@ public class FilmController {
     public Collection<Film> getFilmsByDirector(@PathVariable Long directorId,
                                                @RequestParam String sortBy) {
         return filmService.getFilmsByDirector(directorId, sortBy);
-
     }
 
 
