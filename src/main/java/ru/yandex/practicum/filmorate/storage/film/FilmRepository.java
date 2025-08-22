@@ -29,11 +29,11 @@ public interface FilmRepository {
 
     Collection<Film> findFilmsByDirectorSortedByLikes(Long directorId);
 
-    Collection<Film> getRecommendedFilms(long userId);
-
     Collection<Film> searchFilmsByTitle(String query);
 
     Collection<Film> searchFilmsByDirector(String query);
 
     Collection<Film> searchFilmsByTitleAndDirector(String query);
+
+    Collection<Film> getRecommendedFilms(long userId);
 }
