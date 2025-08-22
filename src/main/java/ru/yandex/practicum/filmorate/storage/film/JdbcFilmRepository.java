@@ -58,38 +58,6 @@ public class JdbcFilmRepository extends BaseNamedParameterRepository<Film> imple
             LIMIT :count
             """;
 
-    private static final String DELETE_GENRE_FILM_QUERY = "DELETE FROM film_genre WHERE film_id = :filmId";
-    private static final String INSERT_GENRE_FILM_QUERY = """
-            INSERT INTO film_genre(film_id, genre_id) VALUES(?, ?)""";
-
-    private static final String FIND_FILMS_BY_DIRECTOR_BY_YEAR_QUERY = """
-            SELECT f.*,
-                   m.mpa_id AS mpa_id,
-                   m.name AS mpa_name,
-                   m.description AS mpa_description
-            FROM films f
-            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
-            JOIN film_directors fd ON f.film_id = fd.film_id
-            WHERE fd.director_id = :directorId
-            ORDER BY f.release_date ASC
-            """;
-
-    private static final String FIND_FILMS_BY_DIRECTOR_BY_LIKES_QUERY = """
-            SELECT f.*,
-                   m.mpa_id AS mpa_id,
-                   m.name AS mpa_name,
-                   m.description AS mpa_description,
-                   COUNT(l.user_id) AS like_count
-            FROM films f
-            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
-            JOIN film_directors fd ON f.film_id = fd.film_id
-            LEFT JOIN likes l ON f.film_id = l.film_id
-            WHERE fd.director_id = :directorId
-            GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id,
-                     m.mpa_id, m.name, m.description
-            ORDER BY like_count DESC
-            """;
-
     private static final String GET_RECOMMENDED_FILMS_QUERY = """
             SELECT f.film_id film_id,
                    f.name name,
@@ -120,6 +88,38 @@ public class JdbcFilmRepository extends BaseNamedParameterRepository<Film> imple
                                   WHERE user_id = :userIdThree
                                  )
             ORDER BY f.film_id
+            """;
+
+    private static final String DELETE_GENRE_FILM_QUERY = "DELETE FROM film_genre WHERE film_id = :filmId";
+    private static final String INSERT_GENRE_FILM_QUERY = """
+            INSERT INTO film_genre(film_id, genre_id) VALUES(?, ?)""";
+
+    private static final String FIND_FILMS_BY_DIRECTOR_BY_YEAR_QUERY = """
+            SELECT f.*,
+                   m.mpa_id AS mpa_id,
+                   m.name AS mpa_name,
+                   m.description AS mpa_description
+            FROM films f
+            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+            JOIN film_directors fd ON f.film_id = fd.film_id
+            WHERE fd.director_id = :directorId
+            ORDER BY f.release_date ASC
+            """;
+
+    private static final String FIND_FILMS_BY_DIRECTOR_BY_LIKES_QUERY = """
+            SELECT f.*,
+                   m.mpa_id AS mpa_id,
+                   m.name AS mpa_name,
+                   m.description AS mpa_description,
+                   COUNT(l.user_id) AS like_count
+            FROM films f
+            JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+            JOIN film_directors fd ON f.film_id = fd.film_id
+            LEFT JOIN likes l ON f.film_id = l.film_id
+            WHERE fd.director_id = :directorId
+            GROUP BY f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id,
+                     m.mpa_id, m.name, m.description
+            ORDER BY like_count DESC
             """;
 
     private static final String DELETE_DIRECTOR_FILM_QUERY = "DELETE FROM film_directors WHERE film_id = :filmId";
