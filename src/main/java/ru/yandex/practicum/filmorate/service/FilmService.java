@@ -10,10 +10,7 @@ import ru.yandex.practicum.filmorate.storage.Director.DirectorRepository;
 import ru.yandex.practicum.filmorate.storage.film.FilmRepository;
 import ru.yandex.practicum.filmorate.storage.genre.GenreRepository;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -134,6 +131,24 @@ public class FilmService {
         return films;
     }
 
+    public Collection<Film> searchFilms(String query, String by) {
+        log.info("Поиск фильмов с query: {} и by: {}", query, by);
+        validationService.validateSearchQuery(query);
+        Set<String> searchBy = validationService.validateAndParseSearchBy(by);
+        Collection<Film> films;
+        if (searchBy.contains("title") && searchBy.contains("director")) {
+            films = filmRepository.searchFilmsByTitleAndDirector(query);
+        } else if (searchBy.contains("title")) {
+            films = filmRepository.searchFilmsByTitle(query);
+        } else if (searchBy.contains("director")) {
+            films = filmRepository.searchFilmsByDirector(query);
+        } else {
+            throw new ValidationException("Неверный параметр 'by'. Используйте 'title', 'director' или оба.");
+        }
+        loadAdditionalData(new ArrayList<>(films));
+        return films;
+    }
+
 
     private void loadAdditionalData(List<Film> films) {
         if (films == null || films.isEmpty()) {
@@ -144,7 +159,7 @@ public class FilmService {
                 .stream()
                 .collect(Collectors.toMap(Film::getId, f -> f)); // формируем мапу
         //Заглушки для аналогичных методов по добавлению жанров и лайков.
-        //genreRepository.loadGenresForFilms(filmMap);
+        genreRepository.loadGenresForFilms(filmMap);
         //likeRepository.loadLikesForFilms(filmMap);
         directorRepository.loadDirectorsForFilms(filmMap);
     }
