@@ -70,7 +70,12 @@ public class FilmController {
                                        @RequestParam(defaultValue = "title") String by) {
         return filmService.searchFilms(query, by);
     }
-  
+
+    @GetMapping("/common")
+    public Collection<Film> getCommonFilms(@RequestParam("userId") Long userId,
+                                           @RequestParam("friendId") Long friendId) {
+        return filmService.getCommonFilms(userId, friendId);
+
     @DeleteMapping("/{filmId}")
     public void removeFilm(@PathVariable Long filmId) {
         filmService.removeFilm(filmId);
