@@ -5,7 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.film.FilmRepository;
 import ru.yandex.practicum.filmorate.storage.user.UserRepository;
 
 import java.util.Collection;
@@ -16,6 +18,7 @@ import java.util.Collection;
 public class UserService {
     private final UserRepository userRepository;
     private final ValidationService validationService;
+    private final FilmRepository filmRepository;
     private final FriendService friendService;
     private final LikeService likeService;
 
@@ -55,6 +58,13 @@ public class UserService {
         User updatedUser = userRepository.updateUser(newUser);
         log.info("Пользователь с ID {} обновлен", newUser.getId());
         return updatedUser;
+    }
+
+    public Collection<Film> getRecommendedFilms(Long userId) {
+        Collection<Film> filmList = filmRepository.getRecommendedFilms(userId);
+        log.info("Отгрузил {} рекомендованных фильмов для пользователя {}", filmList.size(),
+                userId);
+        return filmList;
     }
 
     public void removeUser(Long userId) {
