@@ -22,6 +22,7 @@ public class JdbcGenreRepository extends BaseNamedParameterRepository<Genre> imp
             WHERE fg.film_id = :filmId
             ORDER BY g.genre_id
             """;
+    private static final String DELETE_FILM_GENRES_BY_FILM_ID = "DELETE FROM film_genre WHERE film_id = :filmId;";
 
     public JdbcGenreRepository(NamedParameterJdbcOperations jdbc, RowMapper<Genre> mapper) {
         super(jdbc, mapper);
@@ -55,11 +56,11 @@ public class JdbcGenreRepository extends BaseNamedParameterRepository<Genre> imp
 
         // SQL-запрос для загрузки жанров для всех фильмов
         String sql = """
-            SELECT fg.film_id, g.genre_id, g.name
-            FROM film_genre fg
-            JOIN genres g ON fg.genre_id = g.genre_id
-            WHERE fg.film_id IN (:filmIds)
-            """;
+                SELECT fg.film_id, g.genre_id, g.name
+                FROM film_genre fg
+                JOIN genres g ON fg.genre_id = g.genre_id
+                WHERE fg.film_id IN (:filmIds)
+                """;
 
         // Подготовка параметров запроса
         MapSqlParameterSource parameters = new MapSqlParameterSource();
@@ -82,5 +83,10 @@ public class JdbcGenreRepository extends BaseNamedParameterRepository<Genre> imp
             ));
         });
     }
-}
 
+    public void deleteFilmGenresByFilmId(Long filmId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("filmId", filmId);
+        jdbc.update(DELETE_FILM_GENRES_BY_FILM_ID, params);
+    }
+}

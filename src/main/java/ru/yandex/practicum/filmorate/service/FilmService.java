@@ -151,6 +151,15 @@ public class FilmService {
         return films;
     }
 
+    public void removeFilm(Long filmId) {
+        log.info("Попытка удаления фильма {} ", filmId);
+        validationService.validateFilmExists(filmId);
+        filmRepository.deleteFilm(filmId);
+        genreRepository.deleteFilmGenresByFilmId(filmId);
+        likeService.removeLikesByFilmId(filmId);
+        log.info("Фильм {}, а также связанные с ним лайки и жанры удалены", filmId);
+    }
+
 
     private void loadAdditionalData(List<Film> films) {
         if (films == null || films.isEmpty()) {
@@ -173,5 +182,4 @@ public class FilmService {
                 userId, friendId);
         return filmList;
     }
-
 }

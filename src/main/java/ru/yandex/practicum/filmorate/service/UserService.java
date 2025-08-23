@@ -19,6 +19,8 @@ public class UserService {
     private final UserRepository userRepository;
     private final ValidationService validationService;
     private final FilmRepository filmRepository;
+    private final FriendService friendService;
+    private final LikeService likeService;
 
     public Collection<User> findAllUsers() {
         log.info("Попытка получения списка всех пользователей.");
@@ -63,5 +65,15 @@ public class UserService {
         log.info("Отгрузил {} рекомендованных фильмов для пользователя {}", filmList.size(),
                 userId);
         return filmList;
+    }
+
+    public void removeUser(Long userId) {
+        log.info("Попытка удаления пользователя {} ", userId);
+        validationService.validateUserExists(userId);
+        userRepository.deleteUser(userId);
+        friendService.removeAllFriendsByUserId(userId);
+        //так как не оговорено особо, решил, что при удалении пользователя его лайки нужно удалять
+        likeService.removeLikesByUserId(userId);
+        log.info("Пользователь {}, а также связанные с ним записи о лайках и друзьях удалены", userId);
     }
 }
