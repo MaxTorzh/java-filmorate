@@ -1,6 +1,5 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.RowMapper;
@@ -10,19 +9,14 @@ import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.base.BaseNamedParameterRepository;
-import ru.yandex.practicum.filmorate.storage.genre.GenreRepository;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Repository
 @Qualifier("filmRepository")
 public class JdbcFilmRepository extends BaseNamedParameterRepository<Film> implements FilmRepository {
-    @Autowired
-    private GenreRepository genreRepository;
-
     private static final String FIND_ALL_FILMS_QUERY = """
             SELECT f.*, m.mpa_id AS mpa_id, m.name AS mpa_name, m.description AS mpa_description
             FROM films f
@@ -426,10 +420,8 @@ public class JdbcFilmRepository extends BaseNamedParameterRepository<Film> imple
         Map<String, Long> parameters = new HashMap<>();
         parameters.put("userId", userId);
         parameters.put("friendId", friendId);
-        return findMany(GET_COMMON_FILMS_QUERY, parameters)
-                .stream()
-                .peek(film -> film.setGenres(genreRepository.findGenreByFilmId(film.getId())))
-                .collect(Collectors.toList());
-    }
 
+        List<Film> films = findMany(GET_COMMON_FILMS_QUERY, parameters);
+        return films;
+    }
 }
