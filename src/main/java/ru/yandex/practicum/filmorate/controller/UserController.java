@@ -4,7 +4,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import ru.yandex.practicum.filmorate.model.Event;
+import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.EventService;
 import ru.yandex.practicum.filmorate.service.FriendService;
 import ru.yandex.practicum.filmorate.service.UserService;
 
@@ -17,6 +20,7 @@ import java.util.Collection;
 public class UserController {
     private final UserService userService;
     private final FriendService friendService;
+    private final EventService eventService;
 
     @GetMapping
     public Collection<User> findAllUsers() {
@@ -59,6 +63,21 @@ public class UserController {
     public void removeFriend(@PathVariable Long userId,
                              @PathVariable Long friendId) {
         friendService.removeFriend(userId, friendId);
+    }
+
+    @GetMapping("/{id}/recommendations")
+    public Collection<Film> getRecommendedFilms(@PathVariable("id") Long userId) {
+        return userService.getRecommendedFilms(userId);
+    }
+
+    @DeleteMapping("/{userId}")
+    public void removeUser(@PathVariable Long userId) {
+        userService.removeUser(userId);
+    }
+
+    @GetMapping("/{userId}/feed")
+    public Collection<Event> getEventFeed(@PathVariable Long userId) {
+        return eventService.findEventsByUserId(userId, 0);
     }
 }
 

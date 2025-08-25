@@ -5,7 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
+import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.film.FilmRepository;
 import ru.yandex.practicum.filmorate.storage.user.UserRepository;
 
 import java.util.Collection;
@@ -16,6 +18,9 @@ import java.util.Collection;
 public class UserService {
     private final UserRepository userRepository;
     private final ValidationService validationService;
+    private final FilmRepository filmRepository;
+    private final FriendService friendService;
+    private final LikeService likeService;
 
     public Collection<User> findAllUsers() {
         log.info("Попытка получения списка всех пользователей.");
@@ -53,5 +58,22 @@ public class UserService {
         User updatedUser = userRepository.updateUser(newUser);
         log.info("Пользователь с ID {} обновлен", newUser.getId());
         return updatedUser;
+    }
+
+    public Collection<Film> getRecommendedFilms(Long userId) {
+        Collection<Film> filmList = filmRepository.getRecommendedFilms(userId);
+        log.info("Отгрузил {} рекомендованных фильмов для пользователя {}", filmList.size(),
+                userId);
+        return filmList;
+    }
+
+    public void removeUser(Long userId) {
+        log.info("Попытка удаления пользователя {} ", userId);
+        validationService.validateUserExists(userId);
+        userRepository.deleteUser(userId);
+        friendService.removeAllFriendsByUserId(userId);
+        //так как не оговорено особо, решил, что при удалении пользователя его лайки нужно удалять
+        likeService.removeLikesByUserId(userId);
+        log.info("Пользователь {}, а также связанные с ним записи о лайках и друзьях удалены", userId);
     }
 }

@@ -5,10 +5,18 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.storage.director.DirectorRepository;
+import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.storage.film.FilmRepository;
+import ru.yandex.practicum.filmorate.storage.review.ReviewRepository;
+import ru.yandex.practicum.filmorate.storage.reviewLikes.ReviewLikesRepository;
 import ru.yandex.practicum.filmorate.storage.user.UserRepository;
 import ru.yandex.practicum.filmorate.storage.genre.GenreRepository;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaRepository;
+
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +25,9 @@ public class ValidationService {
     private final FilmRepository filmRepository;
     private final GenreRepository genreRepository;
     private final MpaRepository mpaRepository;
+    private final ReviewRepository reviewRepository;
+    private final ReviewLikesRepository reviewLikesRepository;
+    private final DirectorRepository directorRepository;
 
     public void validateUserExists(Long userId) {
         if (userId == null) {
@@ -51,6 +62,7 @@ public class ValidationService {
                 .orElseThrow(() -> new NotFoundException("Фильм с ID " + filmId + " не найден"));
     }
 
+    // обращение к БД в цикле!
     public void validateFilm(Film film) {
         if (film == null) {
             throw new ValidationException("Фильм не может быть null.");
@@ -83,5 +95,64 @@ public class ValidationService {
         }
         mpaRepository.findMpaById(mpaId)
                 .orElseThrow(() -> new NotFoundException("Рейтинг MPA с ID " + mpaId + " не найден"));
+    }
+
+    public void validateDirectorExists(Long directorId) {
+        if (directorId == null) {
+            throw new ValidationException("ID режиссера не может быть null");
+        }
+        directorRepository.findDirectorById(directorId)
+                .orElseThrow(() -> new NotFoundException("Режиссер с ID " + directorId + " не найден"));
+    }
+
+    public void validateSearchQuery(String query) {
+        if (query == null || query.isEmpty()) {
+            throw new ValidationException("Текст для поиска не может быть пустым.");
+        }
+    }
+
+    public Set<String> validateAndParseSearchBy(String by) {
+        if (by == null || by.isEmpty()) {
+            throw new ValidationException("Текст для поиска не может быть пустым.");
+        }
+        Set<String> validOptions = Set.of("title", "director");
+        Set<String> searchBy = Arrays.stream(by.split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
+        if (!validOptions.containsAll(searchBy)) {
+            throw new ValidationException("Неверный параметр. Используйте 'title', 'director' или оба.");
+        }
+        return searchBy;
+    }
+
+    public void validateReviewExists(Long reviewId) {
+        if (reviewId == null) {
+            throw new ValidationException("ID отзыва не может быть null");
+        }
+        reviewRepository.getReviewById(reviewId)
+                .orElseThrow(() -> new NotFoundException("Отзыв с ID " + reviewId + " не найден"));
+    }
+
+    public void validateReview(Review review) {
+        if (review == null) {
+            throw new ValidationException("Отзыв не может быть null");
+        }
+        if (review.getUseful() == null) {
+            review.setUseful(0);
+        }
+        validateUserExists(review.getUserId());
+        validateFilmExists(review.getFilmId());
+    }
+
+    public void validateReviewLikesExists(Long reviewId, Long userId) {
+        if (reviewId == null) {
+            throw new ValidationException("ID отзыва не могут быть null");
+        }
+        if (userId == null) {
+            throw new ValidationException("ID пользователей не могут быть null");
+        }
+        reviewLikesRepository.getReviewLikes(reviewId, userId)
+                .orElseThrow(() -> new NotFoundException("Оценка с review_id " + reviewId + " и с user_id"
+                        + userId + " не найдена"));
     }
 }
