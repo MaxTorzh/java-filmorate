@@ -69,15 +69,31 @@ public class FilmService {
         log.info("Попытка создания фильма: {}", film.getName());
         validationService.validateFilm(film);
         Film createdFilm = filmRepository.createFilm(film);
+        //костыль на сортировку жанров в фильме
+        List<Genre> test = new ArrayList<>(film.getGenres());
+        test.sort(Comparator.comparingLong(Genre::getId));
+        film.setGenres(new TreeSet<>(test));
+
         log.info("Создан фильм с ID: {}", createdFilm.getId());
         return createdFilm;
     }
 
     public Film updateFilm(Film newFilm) {
         log.info("Попытка обновления фильма с ID: {}", newFilm.getId());
+        validationService.validateFilmExists(newFilm.getId()); //проверка на обновление фильма с несуществующим id
         validationService.validateFilm(newFilm);
+        //костыль на сортировку жанров в фильме
+        List<Genre> test = new ArrayList<>(newFilm.getGenres());
+        test.sort(Comparator.comparingLong(Genre::getId));
+        newFilm.setGenres(new TreeSet<>(test));
 
         Film updatedFilm = filmRepository.updateFilm(newFilm);
+        if (newFilm.getGenres() == null || newFilm.getGenres().isEmpty()) { //обновление фильма (новый фильм пришел без жанра)
+            genreRepository.deleteFilmGenresByFilmId(newFilm.getId());
+        }
+        if (newFilm.getDirectors() == null || newFilm.getDirectors().isEmpty()) { //обновление фильма (новый фильм пришел без режиссера)
+            directorRepository.deleteAllFilmDirectors(newFilm.getId());
+        }
         log.info("Фильм с ID {} обновлен", newFilm.getId());
         return updatedFilm;
     }
