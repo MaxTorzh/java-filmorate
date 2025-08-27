@@ -19,7 +19,7 @@ public class JdbcReviewRepository extends BaseNamedParameterRepository<Review> i
 
     private static final String UPDATE_REVIEW_QUERY = """
             UPDATE reviews
-            SET content = :content, is_positive = :isPositive, user_id = :userId, film_id = :filmId, useful = :useful
+            SET content = :content, is_positive = :isPositive, useful = :useful
             WHERE review_id = :reviewId;
             """;
 
@@ -52,8 +52,25 @@ public class JdbcReviewRepository extends BaseNamedParameterRepository<Review> i
             WHERE review_id = :reviewId
             """;
 
+    private static final String UPDATE_USEFUL_QUERY = """
+            UPDATE reviews
+            SET useful = (
+                SELECT COALESCE(SUM(CASE WHEN is_like THEN 1 ELSE -1 END), 0)
+                FROM review_likes
+                WHERE review_id = :reviewId
+            )
+            WHERE review_id = :reviewId
+            """;
+
     public JdbcReviewRepository(NamedParameterJdbcOperations jdbc, RowMapper<Review> mapper) {
         super(jdbc, mapper);
+    }
+
+    @Override
+    public List<Review> getAllReviews(int count) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("count", count);
+        return findMany(FIND_ALL_REVIEWS_QUERY, params);
     }
 
     @Override
@@ -67,21 +84,39 @@ public class JdbcReviewRepository extends BaseNamedParameterRepository<Review> i
 
         long id = insert(INSERT_REVIEW_QUERY, params);
         review.setReviewId(id);
+        review.setUseful(0);
         return review;
     }
 
     @Override
-    public Review updateReview(Review review) {
+    public Review updateReview(Review newReview) {
+        Optional<Review> existingReviewOpt = getReviewById(newReview.getReviewId());
+        if (existingReviewOpt.isEmpty()) {
+            throw new RuntimeException("Review not found with id: " + newReview.getReviewId());
+        }
+
+        Review existingReview = existingReviewOpt.get();
+
         Map<String, Object> params = new HashMap<>();
-        params.put("reviewId", review.getReviewId());
-        params.put("content", review.getContent());
-        params.put("isPositive", review.getIsPositive());
-        params.put("userId", review.getUserId());
-        params.put("filmId", review.getFilmId());
-        params.put("useful", review.getUseful());
+        params.put("content", newReview.getContent());
+        params.put("isPositive", newReview.getIsPositive());
+        params.put("useful", newReview.getUseful());
+        params.put("userId", existingReview.getUserId());
+        params.put("filmId", existingReview.getFilmId());
+        params.put("reviewId", newReview.getReviewId());
 
         update(UPDATE_REVIEW_QUERY, params);
-        return review;
+
+        newReview.setUserId(existingReview.getUserId());
+        newReview.setFilmId(existingReview.getFilmId());
+        return newReview;
+    }
+
+    @Override
+    public void updateUseful(Long reviewId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("reviewId", reviewId);
+        update(UPDATE_USEFUL_QUERY, params);
     }
 
     @Override

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.model.ReviewLikes;
 import ru.yandex.practicum.filmorate.storage.review.ReviewRepository;
@@ -53,6 +54,14 @@ public class ReviewService {
                 .orElseThrow(() -> new NotFoundException("Отзыв с ID " + reviewId + " не найден"));
     }
 
+    public List<Review> getAllReviews(int count) {
+        log.info("Попытка получения {} отзывов", count);
+        if (count <= 0) {
+            throw new ValidationException("Число отзывов должно быть положительным");
+        }
+        return reviewRepository.getAllReviews(count);
+    }
+
     public List<Review> getReviewsByFilmId(Long filmId, int count) {
         log.info("Попытка получения {} отзыва для фильма с ID: {}", count, filmId);
         validationService.validateFilmExists(filmId);
@@ -71,12 +80,13 @@ public class ReviewService {
                 log.trace("На отзыве {} стоит дизлайк от пользователя {}. Ставим лайк", reviewId, userId);
                 reviewLikesRepository.deleteReviewLike(reviewId, userId);
                 reviewRepository.addLike(reviewId, userId);
-
+                reviewRepository.updateUseful(reviewId);
             }
         }
         reviewLikesRepository.addReviewLike(reviewId, userId, Boolean.TRUE);
         log.info("Пользователь {} лайкнул отзыв {}", userId, reviewId);
         reviewRepository.addLike(reviewId, userId);
+        reviewRepository.updateUseful(reviewId);
     }
 
     public void addDislike(Long reviewId, Long userId) {
@@ -91,12 +101,13 @@ public class ReviewService {
                 log.trace("На отзыве {} стоит лайк от пользователя {}. Ставим дизлайк", reviewId, userId);
                 reviewLikesRepository.deleteReviewLike(reviewId, userId);
                 reviewRepository.addDislike(reviewId, userId);
-
+                reviewRepository.updateUseful(reviewId);
             }
         }
         reviewLikesRepository.addReviewLike(reviewId, userId, Boolean.FALSE);
         log.info("Пользователь {} дизлайкнул отзыв {}", userId, reviewId);
         reviewRepository.addDislike(reviewId, userId);
+        reviewRepository.updateUseful(reviewId);
     }
 
     public void deleteLike(Long reviewId, Long userId) {
@@ -108,6 +119,7 @@ public class ReviewService {
             if (rLikes.get().getIsLike().equals(Boolean.TRUE)) {
                 log.trace("Удаляем лайк отзыву {} от пользователя {}", reviewId, userId);
                 reviewRepository.addDislike(reviewId, userId);
+                reviewRepository.updateUseful(reviewId);
             }
         }
     }
@@ -121,6 +133,7 @@ public class ReviewService {
             if (rLikes.get().getIsLike().equals(Boolean.FALSE)) {
                 log.trace("Удаляем дизлайк отзыву {} от пользователя {}", reviewId, userId);
                 reviewRepository.addLike(reviewId, userId);
+                reviewRepository.updateUseful(reviewId);
             }
         }
     }
