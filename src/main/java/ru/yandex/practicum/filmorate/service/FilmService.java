@@ -35,20 +35,17 @@ public class FilmService {
     public Collection<Film> findAllFilms() {
         log.info("Попытка получения всех фильмов");
         Collection<Film> films = filmRepository.findAllFilms();
+        if (films.isEmpty()) {
+            log.info("GET /films. Получена пустая коллекция");
+            return films;
+        }
+        loadAdditionalData(new ArrayList<>(films));
         for (Film film : films) {
-            Set<Genre> genres = genreRepository.findGenreByFilmId(film.getId());
-            film.setGenres(genres);
             List<Review> reviews = reviewRepository.getReviewsByFilmId(film.getId(), Integer.MAX_VALUE);
             film.setReviews(reviews);
         }
-        List<Film> allFilms = new ArrayList<>(filmRepository.findAllFilms());
-        if (allFilms.isEmpty()) {
-            log.info("GET /films. Получена пустая коллекция");
-            return allFilms;
-        }
-        loadAdditionalData(allFilms);
-        log.info("по запросу GET /films получена коллекция из  {} фильмов", allFilms.size());
-        return allFilms;
+        log.info("по запросу GET /films получена коллекция из {} фильмов", films.size());
+        return films;
     }
 
     public Film getFilmById(Long filmId) {
@@ -194,7 +191,6 @@ public class FilmService {
         log.info("Фильм {}, а также связанные с ним лайки и жанры удалены", filmId);
     }
 
-
     private void loadAdditionalData(List<Film> films) {
         if (films == null || films.isEmpty()) {
             return;
@@ -202,10 +198,8 @@ public class FilmService {
 
         Map<Long, Film> filmMap = films
                 .stream()
-                .collect(Collectors.toMap(Film::getId, f -> f)); // формируем мапу
-        //Заглушки для аналогичных методов по добавлению жанров и лайков.
+                .collect(Collectors.toMap(Film::getId, f -> f));
         genreRepository.loadGenresForFilms(filmMap);
-        //likeRepository.loadLikesForFilms(filmMap);
         directorRepository.loadDirectorsForFilms(filmMap);
     }
 
