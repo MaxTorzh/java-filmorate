@@ -1,5 +1,6 @@
 package ru.yandex.practicum.filmorate.model;
 
+
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,13 +11,10 @@ import lombok.RequiredArgsConstructor;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 @RequiredArgsConstructor
-public class Genre implements Comparable<Genre> {
+public class Director {
     private Long id;
-    @NotBlank(message = "Жанр не может быть пустым")
+
+    @NotBlank(message = "Имя режиссера не может быть пустым")
     private String name;
 
-    @Override
-    public int compareTo(Genre other) {
-        return id.intValue() - other.id.intValue();
-    }
 }
